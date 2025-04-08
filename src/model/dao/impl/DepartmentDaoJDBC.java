@@ -1,13 +1,12 @@
 package model.dao.impl;
 
+import db.DB;
 import db.DbException;
 import model.dao.DepartmentDao;
 import model.entities.Department;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
+import java.util.ArrayList;
 import java.util.List;
 
 public class DepartmentDaoJDBC implements DepartmentDao {
@@ -19,7 +18,31 @@ public class DepartmentDaoJDBC implements DepartmentDao {
 
     @Override
     public void insert(Department obj) {
+        PreparedStatement st = null;
+        try {
+            st = conn.prepareStatement(
+                    "INSERT INTO department\n" +
+                            "(Name)\n" +
+                            "VALUES\n" +
+                            "(?)", Statement.RETURN_GENERATED_KEYS
+            );
+            st.setString(1, obj.getName());
 
+            int rowsAffected = st.executeUpdate();
+
+            if(rowsAffected>0){
+                ResultSet rs = st.getGeneratedKeys();
+                if(rs.next()){
+                    int id = rs.getInt(1);
+                    obj.setId(id);
+                }
+                DB.closeResultSet(rs);
+            }
+        } catch (SQLException e) {
+            throw new DbException(e.getMessage());
+        } finally {
+            DB.closeStatement(st);
+        }
     }
 
     @Override
@@ -35,22 +58,25 @@ public class DepartmentDaoJDBC implements DepartmentDao {
     @Override
     public Department findById(Integer id) {
         PreparedStatement st = null;
-        ResultSet rs =null;
-        try{
-            st =conn.prepareStatement(
+        ResultSet rs = null;
+        try {
+            st = conn.prepareStatement(
                     "SELECT * FROM department WHERE Id = ?");
 
             st.setInt(1, id);
 
             rs = st.executeQuery();
-            if(rs.next()){
+            if (rs.next()) {
                 Department dep = instanceateDepartment(rs);
                 return dep;
             }
             return null;
 
-        }catch (SQLException e){
+        } catch (SQLException e) {
             throw new DbException(e.getMessage());
+        } finally {
+            DB.closeStatement(st);
+            DB.closeResultSet(rs);
         }
     }
 
@@ -62,8 +88,30 @@ public class DepartmentDaoJDBC implements DepartmentDao {
 
         return dep;
     }
+
     @Override
     public List<Department> findall() {
-        return List.of();
+
+        PreparedStatement st = null;
+        ResultSet rs = null;
+        try {
+            st = conn.prepareStatement(
+                    "SELECT * FROM department");
+
+            rs = st.executeQuery();
+            List<Department> list = new ArrayList<>();
+            while (rs.next()) {
+                Department dep = instanceateDepartment(rs);
+                list.add(dep);
+            }
+            return list;
+
+        } catch (SQLException e) {
+            throw new DbException(e.getMessage());
+        } finally {
+            DB.closeStatement(st);
+            DB.closeResultSet(rs);
+        }
+
     }
 }
